@@ -1,7 +1,9 @@
 import G3C_extension as cga
 from G3C_extension import e1, e2, e3, einf
+import numpy as np
 
 def gigafakesnake(initial_PP, xdot, ydot, zdot, initial_PP_length, eps=10**(-3)):
+    """Calculates one step of the kinematics algorithm."""
     new_PP = [None] * len(initial_PP)
     # step 1: find new possible configuration
     
@@ -44,5 +46,10 @@ def gigafakesnake(initial_PP, xdot, ydot, zdot, initial_PP_length, eps=10**(-3))
         new_pair = new_A^new_B
         new_PP[i] = new_pair
         new_A = new_B
+        
+    for PP in new_PP:
+        new_length = cga.extract_point_pair_length(PP)
+        if np.abs(initial_PP_length - new_length) > eps:
+            raise ValueError('zkratil se mi had :(')
     
     return new_PP

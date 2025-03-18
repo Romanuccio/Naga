@@ -1,8 +1,11 @@
+"""Collection of functions extending Clifford 3D CGA for work with points, point pairs and spheres."""
+
 from clifford.g3c import *
-from numpy import sqrt, e
+from numpy import sqrt
 
 
 def inner_commutator(mv1, mv2):
+    """Calculates the commutator w.r.t. inner product of two multivectors."""
     return (mv1 | mv2) - (mv2 | mv1)
 
 
@@ -39,8 +42,7 @@ def point_distance(A, B):
 
 
 def extract_point_pair_length(point_pair):
-    # extraction = (einf|point_pair) + ((einf|point_pair)|eo)*einf
-    # length = euclidean_norm(extraction)
+    """Calculates the length of a single point pair."""
     pp = einf | point_pair
     return sqrt(pp.value[1] ** 2 + pp.value[2] ** 2 + pp.value[3] ** 2)
 
@@ -164,6 +166,7 @@ def extract_points_for_scatter(points):
 
 
 def sphere_inner(centre, radius):
+    """IPNS sphere representation."""
     return centre - (0.5*radius**2)*einf
 
 
