@@ -36,15 +36,18 @@ def point_distance(A, B):
     Returns:
     float: The distance between the two points.
     """
-    distance = 2 * sqrt(abs((A | B).value[0]))
-
+    # distance = 2 * sqrt(abs((A | B).value[0]))
+    distance = -2 * (A|B).value[0]
     return distance
 
 
 def extract_point_pair_length(point_pair):
     """Calculates the length of a single point pair."""
-    pp = einf | point_pair
-    return sqrt(pp.value[1] ** 2 + pp.value[2] ** 2 + pp.value[3] ** 2)
+    line = point_pair^einf
+    distance = 2*sqrt((point_pair|point_pair).value[0]/(line|line).value[0])
+    return distance
+    # pp = einf | point_pair
+    # return sqrt(pp.value[1] ** 2 + pp.value[2] ** 2 + pp.value[3] ** 2)
 
 
 def extract_unique_points(point_pairs):

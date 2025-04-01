@@ -56,6 +56,8 @@ def gigafakesnake(initial_PP, xdot, ydot, zdot, initial_PP_length, eps=10**(-3))
     for PP in new_PP:
         new_length = cga.extract_point_pair_length(PP)
         if np.abs(initial_PP_length - new_length) > eps:
+            print(f'initial: {initial_PP_length}, new: {new_length}')
+            # TODO remove this ffs
             raise ValueError('zkratil se mi had :(')
     
     return new_PP
@@ -303,8 +305,8 @@ def configuration_multilink_line(count=10, length=0.3):
     count += 1
     pts = [None] * count
     pts[0] = cga.up(0)
+    translation = cga.translator_to_cga_point(cga.up(length/np.sqrt(2) * (cga.e1 + cga.e2)))
     for i in range(1, count):
-        translation = cga.translator_to_cga_point(cga.up(length * (cga.e1 + cga.e2)))
         new_point = translation * pts[i - 1] * ~translation
         pts[i] = new_point
 
