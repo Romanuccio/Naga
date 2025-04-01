@@ -186,6 +186,67 @@ def visualise_simulation_start_to_finish(PP_configuration):
     fig.show()
 
 
+def visualise_simulation_evolution(PP_configuration, link_count, range_x = None, range_y = None, range_z = None, color_disc_map = None):
+    """Plots the evolution of positions of a list of point pairs in 3D."""
+    x = []
+    y = []
+    z = []
+    if range_x is None:
+        range_x = (-4, 4)
+    if range_y is None:
+        range_y = (-4, 4)
+    if range_z is None:
+        range_z = (-4, 4)
+    if color_disc_map is None:
+        # color_disc_map = {val: f'rgba({255*val}, 0, {255*(1.-val)}, 1)' for val in df.color}
+        color_disc_map = lambda val: f'rgba({255*val}, 0, {255*(1.-val)}, 1)'
+        
+    for configuration in PP_configuration:
+        points = cga.extract_unique_points(configuration)
+        xn, yn, zn = cga.extract_points_for_scatter(points)
+        x += xn
+        y += yn
+        z += zn
+    colors = np.repeat(np.linspace(0, 1, len(PP_configuration)), link_count+1)
+    df = pd.DataFrame(
+        dict(
+            X=x,
+            Y=y,
+            Z=z,
+            color=colors
+        )
+    )
+    fig = px.line_3d(
+        df,
+        x="X",
+        y="Y",
+        z="Z",
+        color="color",
+        # color_discrete_map={val: f'rgba(0, 0, 255, {val*0.3 + 0.7})' for val in df.color},
+        color_discrete_map= {col: color_disc_map(col) for col in df.color},
+        # color_discrete_map={val: f'rgb({147*(.3*val+.7)}, {173*(.3*val+.7)}, {68*(.3*val+.7)})' for val in df.color},
+        markers=True,
+        range_x=range_x,
+        range_y=range_y,
+        range_z=range_z,
+    ).update_layout(
+        scene={
+            "xaxis": dict(range=range_x),
+            "yaxis": dict(range=range_y),
+            "zaxis": dict(range=range_z),
+            # "aspectmode": "cube",
+        },
+        scene_aspectmode="data",
+        width=700,
+        height=700,
+    ).update_traces(
+        marker=dict(
+            size=3
+            ),
+        # opacity=[0., .2, .3, .4, .5]
+        )
+    fig.show()
+
 def visualise_PP_configuration(PP):
     """Plots one configuration of a list of point pairs in 3D."""
     initial_points = cga.extract_unique_points(PP)
@@ -220,6 +281,7 @@ def visualise_PP_configuration(PP):
             )
         )
     fig.show()
+
 
 
 def configuration_multilink_random_planar(count=10, length=0.3):
