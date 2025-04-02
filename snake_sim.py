@@ -2,6 +2,7 @@
 
 import G3C_extension as cga
 from G3C_extension import e1, e2, e3, einf
+import clifford.tools.g3c as tools
 from numpy import pi
 import numpy as np
 import pandas as pd
@@ -15,50 +16,60 @@ def gigafakesnake(initial_PP, xdot, ydot, zdot, initial_PP_length, eps=10**(-3))
     
     def point_pair_step(new_A, initial_B, initial_line):
         ###### b) construct sphere centered on new_A of radius half initial_PP_length
-        centre_range_sphere = new_A - 0.5*(0.5*initial_PP_length)**2*einf
-        
+        centre_range_sphere = cga.sphere_inner(new_A, 0.5*initial_PP_length)
         ###### c) find new possible centres by intersection of sphere with initial line
+        # TODO zeptat se petra na grade dvojbodu
         intersection = initial_line & centre_range_sphere.dual()
-        
+        intersection = intersection.clean()
         ###### d) check if intersection is real, decompose
         if (intersection|intersection).value[0] < 0:
-                raise ValueError('infeasible configuration')
+                raise ValueError('infeasible configuration due to imaginary point pair')
             
         # take centre closer to initial B
         # TODO consider different functional
         new_centre_1, new_centre_2 = cga.decompose_point_pair(intersection)
-        new_centre = new_centre_1 if cga.point_distance(initial_B, new_centre_1) < cga.point_distance(initial_B, new_centre_2) else new_centre_2
+        new_centre = new_centre_1 if tools.euc_dist(initial_B, new_centre_1) < tools.euc_dist(initial_B, new_centre_2) else new_centre_2
         
         ###### e) find new point B as intersection of line (new_A through new_centre) and sphere centered on new_A
-        new_line = new_A^new_centre^einf
-        link_length_sphere = new_A - 0.5*initial_PP_length**2*einf
+        new_line = cga.line_from_points(new_A, new_centre)
+        link_length_sphere = cga.sphere_inner(new_A, initial_PP_length)
         intersection = new_line & link_length_sphere.dual()
+        intersection = intersection.clean()
         new_B_1, new_B_2 = cga.decompose_point_pair(intersection)
-        new_B = new_B_1 if cga.point_distance(initial_B, new_B_1) < cga.point_distance(initial_B, new_B_2) else new_B_2
+        new_B = new_B_1 if tools.euc_dist(initial_B, new_B_1) < tools.euc_dist(initial_B, new_B_2) else new_B_2
         return new_B
+
         
     ###### a) prepare everything needed: lines passing through initial point pairs, starting points
-    initial_lines = [(point_pair^einf).normal() for point_pair in initial_PP]
+    initial_lines = [cga.line_from_pair(point_pair) for point_pair in initial_PP]
     new_A = None
     
+    ###### for every point pair in last configuration, apply the IK algorithm
     for i, PP in enumerate(initial_PP):
         initial_A, initial_B = cga.decompose_point_pair(PP)
         if new_A is None:
+            # first step in algorithm
             # controlled head: translate as desired to obtain new head position
             Txyz = cga.translator(xdot*e1 + ydot*e2 + zdot*e3)
             new_A = Txyz*initial_A*~Txyz
-            
+            new_A = new_A.clean()
+        
+        # find new location of second point in point pair
         new_B = point_pair_step(new_A, initial_B, initial_lines[i])
+        # construct new point pair
         new_pair = new_A^new_B
-        new_PP[i] = new_pair
+        new_PP[i] = new_pair.clean()
+        # set the new position endpoint as the moved head point for next point pair
         new_A = new_B
         
+    ###### checking for numerical stability: length of point pairs should not change
+    # if the length changes, it is usually caused by ghost blades
     for PP in new_PP:
         new_length = cga.extract_point_pair_length(PP)
         if np.abs(initial_PP_length - new_length) > eps:
             print(f'initial: {initial_PP_length}, new: {new_length}')
             # TODO remove this ffs
-            raise ValueError('zkratil se mi had :(')
+            raise ValueError('pokroutil se mi had :(')
     
     return new_PP
 
@@ -68,12 +79,82 @@ def calculate_kinematics(initial_PP_configuration, dx, dy, dz, iterations=100, e
     initial_PP_length = cga.extract_point_pair_length(initial_PP_configuration[0])
     new_PP = [None] * (iterations + 1)
     new_PP[0] = initial_PP_configuration
-    for i in range(0, iterations):
+    for i in range(iterations):
         new_PP[i + 1] = gigafakesnake(new_PP[i], xdot=dx[i], ydot=dy[i], zdot=dz[i], initial_PP_length=initial_PP_length, eps=eps)
     return new_PP
 
 
 def visualise_simulation_animation(configs_PP, frame_duration=50):
+    """Plots the 3D animation of the snake robot."""
+    configurations_dictionary = {
+        0: cga.extract_points_for_scatter(cga.extract_unique_points(configs_PP[0]))
+    }
+    for i, config in enumerate(configs_PP, 1):
+        iteration_points = cga.extract_unique_points(config)
+        points_coordinates = cga.extract_points_for_scatter(iteration_points)
+        configurations_dictionary[i] = points_coordinates
+
+    configs_dataframe = pd.DataFrame(data=configurations_dictionary)
+    first_pos = configs_dataframe[configs_dataframe.columns[0]]
+    last_pos = configs_dataframe[configs_dataframe.columns[-1]]
+    fig = go.Figure(
+        data=[
+            go.Scatter3d(x=first_pos[0], y=first_pos[1], z=first_pos[2]),
+            go.Scatter3d(x=last_pos[0], y=last_pos[1], z=last_pos[2]),
+        ],
+        layout=go.Layout(
+            updatemenus=[
+                dict(
+                    type="buttons",
+                    buttons=[
+                        dict(
+                            args=[
+                                None,
+                                {
+                                    "frame": {
+                                        "duration": frame_duration,
+                                        "redraw": True,
+                                    },
+                                    "fromcurrent": True,
+                                },
+                            ],
+                            label="Play",
+                            method="animate",
+                        )
+                    ],
+                )
+            ],
+            scene={
+                "xaxis": dict(range=[-3, 3], fixedrange=False),
+                "yaxis": dict(range=[-3, 3], fixedrange=False),
+                "zaxis": dict(range=[-3, 3], fixedrange=False),
+                "aspectmode": "cube",
+            },
+            width=700,
+            height=700,
+        ),
+        frames=[
+            go.Frame(
+                data=[
+                    go.Scatter3d(
+                        x=configs_dataframe[k][0],
+                        y=configs_dataframe[k][1],
+                        z=configs_dataframe[k][2],
+                    )
+                ]
+            )
+            for k in range(1, len(configurations_dictionary))
+        ],
+    ).update_traces(
+        marker=dict(
+            size=3
+            )
+        )
+
+    fig.show()
+    
+    
+    def visualise_simulation_animation_traces(configs_PP, frame_duration=50):
     """Plots the 3D animation of the snake robot."""
     configurations_dictionary = {
         0: cga.extract_points_for_scatter(cga.extract_unique_points(configs_PP[0]))
@@ -297,7 +378,7 @@ def configuration_multilink_random_planar(count=10, length=0.3):
         new_point = translation * pts[i - 1] * ~translation
         pts[i] = new_point
 
-    return cga.point_pair(pts)
+    return cga.point_pair_from_collection(pts)
 
 
 def configuration_multilink_line(count=10, length=0.3):
@@ -310,4 +391,4 @@ def configuration_multilink_line(count=10, length=0.3):
         new_point = translation * pts[i - 1] * ~translation
         pts[i] = new_point
 
-    return cga.point_pair(pts)
+    return cga.point_pair_from_collection(pts)

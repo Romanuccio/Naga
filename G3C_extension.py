@@ -1,5 +1,6 @@
 """Collection of functions extending Clifford 3D CGA for work with points, point pairs and spheres."""
 
+import clifford.tools.g3c as tools
 from clifford.g3c import *
 from numpy import sqrt
 
@@ -22,32 +23,16 @@ def decompose_point_pair(point_pair):
     scalar_eo = Q2 | einf
     if scalar_eo != 0:
         Q2 /= -scalar_eo
-    return Q1, Q2
-
-
-def point_distance(A, B):
-    """
-    Calculates the distance between two points in G3C.
-
-    Parameters:
-    A (MultiVector): First point.
-    B (MultiVector): Second point.
-
-    Returns:
-    float: The distance between the two points.
-    """
-    # distance = 2 * sqrt(abs((A | B).value[0]))
-    distance = -2 * (A|B).value[0]
-    return distance
+    Q1_sanitised = Q1(1).clean()
+    Q2_sanitised = Q2(1).clean()
+    return Q1_sanitised, Q2_sanitised
 
 
 def extract_point_pair_length(point_pair):
     """Calculates the length of a single point pair."""
-    line = point_pair^einf
-    distance = 2*sqrt((point_pair|point_pair).value[0]/(line|line).value[0])
-    return distance
-    # pp = einf | point_pair
-    # return sqrt(pp.value[1] ** 2 + pp.value[2] ** 2 + pp.value[3] ** 2)
+    line = point_pair ^ einf
+    length = 2 * sqrt((point_pair | point_pair).value[0] / (line | line).value[0])
+    return length
 
 
 def extract_unique_points(point_pairs):
@@ -124,34 +109,33 @@ def joint_axis_planar(clifford_cga_vector):
     return axis.normal()
 
 
-def point_pair(points):
-    """Creates point pairs."""
+def point_pair_from_collection(points):
+    """Returns sanitised point pairs defined by a collection of successive conformal points."""
     point_pairs = []
     for i in range(len(points) - 1):
-        point_pairs.append(points[i] ^ points[i + 1])
+        pair = point_pair(points[i], points[i + 1])
+        point_pairs.append(pair)
     return point_pairs
 
 
-def centre(point_pairs):
+def point_pair(A, B):
+    """Returns a sanitised point pair defined by conformal points A and B."""
+    pair = A ^ B
+    sanitised_pair = pair(2).clean()
+    return sanitised_pair
+
+
+def point_pair_centre(point_pairs):
     """Calculates centres of point pairs."""
     centres = []
     for i in range(len(point_pairs)):
-        center_point = point_pairs[i] * einf * ~point_pairs[i]
+        center_point = tools.get_center_from_sphere(point_pairs[i])
         scalar_eo = center_point | einf
         if scalar_eo != 0:
             center_point /= -scalar_eo
-        centres.append((center_point))
+        point_sanitised = center_point(1).clean()
+        centres.append(point_sanitised)
     return centres
-
-
-def bruteforce_rounding(multivector):
-    """Rounds multivector coefficients smaller than a certain value to zero."""
-    rounded = multivector.layout.MultiVector()
-    rounded.value = multivector.value
-    for i, value in enumerate(rounded.value):
-        if abs(value) < 1e-9:
-            rounded.value[i] = 0
-    return rounded
 
 
 def extract_points_for_scatter(points):
@@ -169,8 +153,20 @@ def extract_points_for_scatter(points):
 
 
 def sphere_inner(centre, radius):
-    """IPNS sphere representation."""
-    return centre - (0.5*radius**2)*einf
+    """IPNS sphere representation from conformal centre and radius."""
+    sphere = centre - (0.5 * radius**2) * einf
+    point_sanitised = sphere(1).clean()
+    return point_sanitised
+
+
+def line_from_points(A, B):
+    line_sanitised = (A ^ B ^ einf)(3).clean()
+    return line_sanitised
+
+
+def line_from_pair(P):
+    pair_sanitised = (P ^ einf)(3).clean()
+    return pair_sanitised
 
 
 def configuration_test(
