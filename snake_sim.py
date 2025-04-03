@@ -9,7 +9,12 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-def gigafakesnake(initial_PP, xdot, ydot, zdot, initial_PP_length, eps=10**(-3)):
+class AxisAngleData:
+    def __init__(self, axis, angle):
+        self.axis = axis
+        self.angle = angle
+
+def gigafakesnake(initial_PP, xdot, ydot, zdot, initial_PP_length, eps=10**(-3), ):
     """Calculates one step of the kinematics algorithm."""
     new_PP = [None] * len(initial_PP)
     # step 1: find new possible configuration
@@ -155,73 +160,73 @@ def visualise_simulation_animation(configs_PP, frame_duration=50):
     
     
     def visualise_simulation_animation_traces(configs_PP, frame_duration=50):
-    """Plots the 3D animation of the snake robot."""
-    configurations_dictionary = {
-        0: cga.extract_points_for_scatter(cga.extract_unique_points(configs_PP[0]))
-    }
-    for i, config in enumerate(configs_PP, 1):
-        iteration_points = cga.extract_unique_points(config)
-        points_coordinates = cga.extract_points_for_scatter(iteration_points)
-        configurations_dictionary[i] = points_coordinates
+        """Plots the 3D animation of the snake robot."""
+        configurations_dictionary = {
+            0: cga.extract_points_for_scatter(cga.extract_unique_points(configs_PP[0]))
+        }
+        for i, config in enumerate(configs_PP, 1):
+            iteration_points = cga.extract_unique_points(config)
+            points_coordinates = cga.extract_points_for_scatter(iteration_points)
+            configurations_dictionary[i] = points_coordinates
 
-    configs_dataframe = pd.DataFrame(data=configurations_dictionary)
-    first_pos = configs_dataframe[configs_dataframe.columns[0]]
-    last_pos = configs_dataframe[configs_dataframe.columns[-1]]
-    fig = go.Figure(
-        data=[
-            go.Scatter3d(x=first_pos[0], y=first_pos[1], z=first_pos[2]),
-            go.Scatter3d(x=last_pos[0], y=last_pos[1], z=last_pos[2]),
-        ],
-        layout=go.Layout(
-            updatemenus=[
-                dict(
-                    type="buttons",
-                    buttons=[
-                        dict(
-                            args=[
-                                None,
-                                {
-                                    "frame": {
-                                        "duration": frame_duration,
-                                        "redraw": True,
-                                    },
-                                    "fromcurrent": True,
-                                },
-                            ],
-                            label="Play",
-                            method="animate",
-                        )
-                    ],
-                )
+        configs_dataframe = pd.DataFrame(data=configurations_dictionary)
+        first_pos = configs_dataframe[configs_dataframe.columns[0]]
+        last_pos = configs_dataframe[configs_dataframe.columns[-1]]
+        fig = go.Figure(
+            data=[
+                go.Scatter3d(x=first_pos[0], y=first_pos[1], z=first_pos[2]),
+                go.Scatter3d(x=last_pos[0], y=last_pos[1], z=last_pos[2]),
             ],
-            scene={
-                "xaxis": dict(range=[-3, 3]),
-                "yaxis": dict(range=[-3, 3]),
-                "zaxis": dict(range=[-3, 3]),
-                "aspectmode": "cube",
-            },
-            width=700,
-            height=700,
-        ),
-        frames=[
-            go.Frame(
-                data=[
-                    go.Scatter3d(
-                        x=configs_dataframe[k][0],
-                        y=configs_dataframe[k][1],
-                        z=configs_dataframe[k][2],
+            layout=go.Layout(
+                updatemenus=[
+                    dict(
+                        type="buttons",
+                        buttons=[
+                            dict(
+                                args=[
+                                    None,
+                                    {
+                                        "frame": {
+                                            "duration": frame_duration,
+                                            "redraw": True,
+                                        },
+                                        "fromcurrent": True,
+                                    },
+                                ],
+                                label="Play",
+                                method="animate",
+                            )
+                        ],
                     )
-                ]
+                ],
+                scene={
+                    "xaxis": dict(range=[-3, 3]),
+                    "yaxis": dict(range=[-3, 3]),
+                    "zaxis": dict(range=[-3, 3]),
+                    "aspectmode": "cube",
+                },
+                width=700,
+                height=700,
+            ),
+            frames=[
+                go.Frame(
+                    data=[
+                        go.Scatter3d(
+                            x=configs_dataframe[k][0],
+                            y=configs_dataframe[k][1],
+                            z=configs_dataframe[k][2],
+                        )
+                    ]
+                )
+                for k in range(1, len(configurations_dictionary))
+            ],
+        ).update_traces(
+            marker=dict(
+                size=3
+                )
             )
-            for k in range(1, len(configurations_dictionary))
-        ],
-    ).update_traces(
-        marker=dict(
-            size=3
-            )
-        )
 
-    fig.show()
+        fig.show()
 
 
 def visualise_simulation_start_to_finish(PP_configuration):
