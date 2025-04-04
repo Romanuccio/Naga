@@ -130,9 +130,9 @@ def visualise_simulation_animation(configs_PP, frame_duration=50):
                 )
             ],
             scene={
-                "xaxis": dict(range=[-3, 3], fixedrange=False),
-                "yaxis": dict(range=[-3, 3], fixedrange=False),
-                "zaxis": dict(range=[-3, 3], fixedrange=False),
+                "xaxis": dict(range=[-3, 3]),
+                "yaxis": dict(range=[-3, 3]),
+                "zaxis": dict(range=[-3, 3]),
                 "aspectmode": "cube",
             },
             width=700,
