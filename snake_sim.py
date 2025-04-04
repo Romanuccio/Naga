@@ -159,74 +159,123 @@ def visualise_simulation_animation(configs_PP, frame_duration=50):
     fig.show()
     
     
-    def visualise_simulation_animation_traces(configs_PP, frame_duration=50):
-        """Plots the 3D animation of the snake robot."""
-        configurations_dictionary = {
-            0: cga.extract_points_for_scatter(cga.extract_unique_points(configs_PP[0]))
-        }
-        for i, config in enumerate(configs_PP, 1):
-            iteration_points = cga.extract_unique_points(config)
-            points_coordinates = cga.extract_points_for_scatter(iteration_points)
-            configurations_dictionary[i] = points_coordinates
+def visualise_simulation_animation_traces(
+    configs_PP, ghost_count=1, delay=5, frame_duration=50
+):
+    """Plots the 3D animation of the snake robot."""
+    configurations_dictionary = {
+        0: cga.extract_points_for_scatter(cga.extract_unique_points(configs_PP[0]))
+    }
+    for i, config in enumerate(configs_PP, 1):
+        iteration_points = cga.extract_unique_points(config)
+        points_coordinates = cga.extract_points_for_scatter(iteration_points)
+        configurations_dictionary[i] = points_coordinates
 
-        configs_dataframe = pd.DataFrame(data=configurations_dictionary)
-        first_pos = configs_dataframe[configs_dataframe.columns[0]]
-        last_pos = configs_dataframe[configs_dataframe.columns[-1]]
-        fig = go.Figure(
-            data=[
-                go.Scatter3d(x=first_pos[0], y=first_pos[1], z=first_pos[2]),
-                go.Scatter3d(x=last_pos[0], y=last_pos[1], z=last_pos[2]),
-            ],
-            layout=go.Layout(
-                updatemenus=[
-                    dict(
-                        type="buttons",
-                        buttons=[
-                            dict(
-                                args=[
-                                    None,
-                                    {
-                                        "frame": {
-                                            "duration": frame_duration,
-                                            "redraw": True,
-                                        },
-                                        "fromcurrent": True,
-                                    },
-                                ],
-                                label="Play",
-                                method="animate",
-                            )
-                        ],
-                    )
-                ],
-                scene={
-                    "xaxis": dict(range=[-3, 3]),
-                    "yaxis": dict(range=[-3, 3]),
-                    "zaxis": dict(range=[-3, 3]),
-                    "aspectmode": "cube",
-                },
-                width=700,
-                height=700,
-            ),
-            frames=[
-                go.Frame(
-                    data=[
-                        go.Scatter3d(
-                            x=configs_dataframe[k][0],
-                            y=configs_dataframe[k][1],
-                            z=configs_dataframe[k][2],
-                        )
-                    ]
-                )
-                for k in range(1, len(configurations_dictionary))
-            ],
-        ).update_traces(
-            marker=dict(
-                size=3
-                )
+    configs_dataframe = pd.DataFrame(data=configurations_dictionary)
+
+    first_pos = configs_dataframe[configs_dataframe.columns[0]]
+
+    scatters = [
+        go.Scatter3d(
+            x=first_pos[0],
+            y=first_pos[1],
+            z=first_pos[2],
+            marker=dict(color="blue", opacity=1),
+            opacity=1,
+        )
+    ]
+    scatters.extend(
+        [
+            go.Scatter3d(
+                x=first_pos[0],
+                y=first_pos[1],
+                z=first_pos[2],
+                opacity=0,
+                marker=dict(color="blue", opacity=0),
+            )
+            for _ in range(ghost_count)
+        ]
+    )
+
+    def update_scatters(current_index, delay, ghost_count):
+        scatters[0] = go.Scatter3d(
+            x=configs_dataframe[current_index][0],
+            y=configs_dataframe[current_index][1],
+            z=configs_dataframe[current_index][2],
+            opacity=1,
+            marker={
+                "color": "blue",
+                "opacity": 1,
+            },
+        )
+
+        update_time = current_index % delay
+        if update_time == 0:
+            ghost_index = ((current_index - 1) // delay) % (ghost_count)
+            scatters[ghost_index + 1] = go.Scatter3d(
+                x=configs_dataframe[current_index][0],
+                y=configs_dataframe[current_index][1],
+                z=configs_dataframe[current_index][2],
+                marker=dict(
+                    color="blue",
+                    # opacity = 1-(ghost_count-ghost_index)/ghost_count
+                    # opacity=np.clip(0.6 - (ghost_count-ghost_index)/ghost_count,0.3,1)
+                ),
             )
 
-        fig.show()
+            for i in range(ghost_index, ghost_count + ghost_index):
+                index = i % ghost_count
+                scatters[index].mode = "lines+markers"
+                scatters[index].marker = {
+                    "opacity": 1 - 0.5 * index / ghost_count,
+                    "color": "blue",
+                    "size": 3,
+                }
+                scatters[index].opacity = 1 - 0.5 * index / ghost_count
+
+        return scatters
+
+    # last_pos = configs_dataframe[configs_dataframe.columns[5]]
+    fig = go.Figure(
+        data=scatters,
+        layout=go.Layout(
+            updatemenus=[
+                dict(
+                    type="buttons",
+                    buttons=[
+                        dict(
+                            args=[
+                                None,
+                                {
+                                    "frame": {
+                                        "duration": frame_duration,
+                                        "redraw": True,
+                                    },
+                                    "fromcurrent": True,
+                                },
+                            ],
+                            label="Play",
+                            method="animate",
+                        )
+                    ],
+                )
+            ],
+            scene={
+                "xaxis": dict(range=[-3, 3]),
+                "yaxis": dict(range=[-3, 3]),
+                "zaxis": dict(range=[-3, 3]),
+                "aspectmode": "cube",
+            },
+            width=700,
+            height=700,
+        ),
+        frames=[
+            go.Frame(data=update_scatters(k, delay=delay, ghost_count=ghost_count))
+            for k in range(1, len(configurations_dictionary))
+        ],
+    ).update_traces(marker=dict(size=3))
+
+    fig.show()
 
 
 def visualise_simulation_start_to_finish(PP_configuration):
