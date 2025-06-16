@@ -1,18 +1,18 @@
 """Module containing functions for 3D plotly-based visualisations and generation of snake robot configurations."""
 
-import G3C_extension as cga
-from G3C_extension import e1, e2, e3, einf
 import clifford.tools.g3c as tools
-from numpy import pi
+import G3C_extension as cga
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from G3C_extension import e1, e2, e3, einf
+from numpy import pi
 
-class AxisAngleData:
-    def __init__(self, axis, angle):
-        self.axis = axis
-        self.angle = angle
+# class AxisAngleData:
+#     def __init__(self, axis, angle):
+#         self.axis = axis
+#         self.angle = angle
 
 def gigafakesnake(initial_PP, xdot, ydot, zdot, initial_PP_length, eps=10**(-3), ):
     """Calculates one step of the kinematics algorithm."""
@@ -35,7 +35,7 @@ def gigafakesnake(initial_PP, xdot, ydot, zdot, initial_PP_length, eps=10**(-3),
         new_centre_1, new_centre_2 = cga.decompose_point_pair(intersection)
         new_centre = new_centre_1 if tools.euc_dist(initial_B, new_centre_1) < tools.euc_dist(initial_B, new_centre_2) else new_centre_2
         
-        ###### e) find new point B as intersection of line (new_A through new_centre) and sphere centered on new_A
+        ###### e) find new point B as intersection of line (new_A through new_centre) and sphere centered on new_A minimising distance travelled from initial configuration
         new_line = cga.line_from_points(new_A, new_centre)
         link_length_sphere = cga.sphere_inner(new_A, initial_PP_length)
         intersection = new_line & link_length_sphere.dual()
@@ -82,7 +82,7 @@ def gigafakesnake(initial_PP, xdot, ydot, zdot, initial_PP_length, eps=10**(-3),
 def calculate_kinematics(initial_PP_configuration, dx, dy, dz, iterations=100, eps=10**(-3)):
     """Calculates successive configurations for given amount of iterations using the kinematics algorithm."""
     initial_PP_length = cga.extract_point_pair_length(initial_PP_configuration[0])
-    new_PP = [None] * (iterations + 1)
+    new_PP = [0] * (iterations + 1)
     new_PP[0] = initial_PP_configuration
     for i in range(iterations):
         new_PP[i + 1] = gigafakesnake(new_PP[i], xdot=dx[i], ydot=dy[i], zdot=dz[i], initial_PP_length=initial_PP_length, eps=eps)
@@ -156,7 +156,7 @@ def visualise_simulation_animation(configs_PP, frame_duration=50):
             )
         )
 
-    fig.show()
+    return fig
     
     
 def visualise_simulation_animation_traces(
@@ -292,9 +292,10 @@ def visualise_simulation_start_to_finish(PP_configuration):
             X=x_initial + x_final,
             Y=y_initial + y_final,
             Z=z_initial + z_final,
-            color=["Initial"] * len(x_initial) + ["Final"] * len(y_final),
+            color=["Initial"] * len(x_initial) + ["Final"] * len(x_final),
         )
     )
+
     fig = px.line_3d(
         df,
         x="X",
@@ -302,25 +303,29 @@ def visualise_simulation_start_to_finish(PP_configuration):
         z="Z",
         color="color",
         markers=True,
-        range_x=(-4, 4),
-        range_y=(-4, 4),
-        range_z=(-4, 4),
-    ).update_layout(
-        scene={
-            "xaxis": dict(range=[-4, 4]),
-            "yaxis": dict(range=[-4, 4]),
-            "zaxis": dict(range=[-4, 4]),
-            "aspectmode": "cube",
-        },
-        scene_aspectmode="cube",
+    )
+
+    axis_range = [-4, 4]
+    tick_step = 1
+
+    fig.update_layout(
+        scene=dict(
+            xaxis=dict(range=axis_range, dtick=tick_step),
+            yaxis=dict(range=axis_range, dtick=tick_step),
+            zaxis=dict(range=axis_range, dtick=tick_step),
+            aspectmode="manual",
+            aspectratio=dict(x=1, y=1, z=1)
+        ),
         width=700,
         height=700,
-    ).update_traces(
-        marker=dict(
-            size=3
-            )
-        )
-    fig.show()
+    )
+
+    fig.update_traces(marker=dict(size=3))
+
+    # fig.show()
+    return fig
+
+
 
 
 def visualise_simulation_evolution(PP_configuration, link_count, range_x = None, range_y = None, range_z = None, color_disc_map = None):
@@ -383,6 +388,8 @@ def visualise_simulation_evolution(PP_configuration, link_count, range_x = None,
         # opacity=[0., .2, .3, .4, .5]
         )
     fig.show()
+    
+    # return fig
 
 def visualise_PP_configuration(PP):
     """Plots one configuration of a list of point pairs in 3D."""
