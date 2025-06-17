@@ -9,83 +9,102 @@ import plotly.graph_objects as go
 from G3C_extension import e1, e2, e3, einf
 from numpy import pi
 
-# class AxisAngleData:
-#     def __init__(self, axis, angle):
-#         self.axis = axis
-#         self.angle = angle
 
-def gigafakesnake(initial_PP, xdot, ydot, zdot, initial_PP_length, eps=10**(-3), ):
+def gigafakesnake(
+    initial_PP,
+    xdot,
+    ydot,
+    zdot,
+    initial_PP_length,
+    eps=10 ** (-3),
+):
     """Calculates one step of the kinematics algorithm."""
     new_PP = [None] * len(initial_PP)
     # step 1: find new possible configuration
-    
+
     def point_pair_step(new_A, initial_B, initial_line):
         ###### b) construct sphere centered on new_A of radius half initial_PP_length
-        centre_range_sphere = cga.sphere_inner(new_A, 0.5*initial_PP_length)
+        centre_range_sphere = cga.sphere_inner(new_A, 0.5 * initial_PP_length)
         ###### c) find new possible centres by intersection of sphere with initial line
-        # TODO zeptat se petra na grade dvojbodu
         intersection = initial_line & centre_range_sphere.dual()
         intersection = intersection.clean()
         ###### d) check if intersection is real, decompose
-        if (intersection|intersection).value[0] < 0:
-                raise ValueError('infeasible configuration due to imaginary point pair')
-            
+        if (intersection | intersection).value[0] < 0:
+            raise ValueError("infeasible configuration due to imaginary point pair")
+
         # take centre closer to initial B
-        # TODO consider different functional
         new_centre_1, new_centre_2 = cga.decompose_point_pair(intersection)
-        new_centre = new_centre_1 if tools.euc_dist(initial_B, new_centre_1) < tools.euc_dist(initial_B, new_centre_2) else new_centre_2
-        
+        new_centre = (
+            new_centre_1
+            if tools.euc_dist(initial_B, new_centre_1)
+            < tools.euc_dist(initial_B, new_centre_2)
+            else new_centre_2
+        )
+
         ###### e) find new point B as intersection of line (new_A through new_centre) and sphere centered on new_A minimising distance travelled from initial configuration
         new_line = cga.line_from_points(new_A, new_centre)
         link_length_sphere = cga.sphere_inner(new_A, initial_PP_length)
         intersection = new_line & link_length_sphere.dual()
         intersection = intersection.clean()
         new_B_1, new_B_2 = cga.decompose_point_pair(intersection)
-        new_B = new_B_1 if tools.euc_dist(initial_B, new_B_1) < tools.euc_dist(initial_B, new_B_2) else new_B_2
+        new_B = (
+            new_B_1
+            if tools.euc_dist(initial_B, new_B_1) < tools.euc_dist(initial_B, new_B_2)
+            else new_B_2
+        )
         return new_B
 
-        
     ###### a) prepare everything needed: lines passing through initial point pairs, starting points
     initial_lines = [cga.line_from_pair(point_pair) for point_pair in initial_PP]
     new_A = None
-    
+
     ###### for every point pair in last configuration, apply the IK algorithm
     for i, PP in enumerate(initial_PP):
         initial_A, initial_B = cga.decompose_point_pair(PP)
         if new_A is None:
             # first step in algorithm
             # controlled head: translate as desired to obtain new head position
-            Txyz = cga.translator(xdot*e1 + ydot*e2 + zdot*e3)
-            new_A = Txyz*initial_A*~Txyz
+            Txyz = cga.translator(xdot * e1 + ydot * e2 + zdot * e3)
+            new_A = Txyz * initial_A * ~Txyz
             new_A = new_A.clean()
-        
+
         # find new location of second point in point pair
         new_B = point_pair_step(new_A, initial_B, initial_lines[i])
         # construct new point pair
-        new_pair = new_A^new_B
+        new_pair = new_A ^ new_B
         new_PP[i] = new_pair.clean()
         # set the new position endpoint as the moved head point for next point pair
         new_A = new_B
-        
+
     ###### checking for numerical stability: length of point pairs should not change
     # if the length changes, it is usually caused by ghost blades
     for PP in new_PP:
         new_length = cga.extract_point_pair_length(PP)
         if np.abs(initial_PP_length - new_length) > eps:
-            print(f'initial: {initial_PP_length}, new: {new_length}')
-            # TODO remove this ffs
-            raise ValueError('pokroutil se mi had :(')
-    
+            print(f"initial: {initial_PP_length}, new: {new_length}")
+            raise ValueError(
+                f"Numerical instability: the length of the point pairs changed by more than epsilon:{eps} since the initial position."
+            )
+
     return new_PP
 
 
-def calculate_kinematics(initial_PP_configuration, dx, dy, dz, iterations=100, eps=10**(-3)):
+def calculate_kinematics(
+    initial_PP_configuration, dx, dy, dz, iterations=100, eps=10 ** (-3)
+):
     """Calculates successive configurations for given amount of iterations using the kinematics algorithm."""
     initial_PP_length = cga.extract_point_pair_length(initial_PP_configuration[0])
     new_PP = [0] * (iterations + 1)
     new_PP[0] = initial_PP_configuration
     for i in range(iterations):
-        new_PP[i + 1] = gigafakesnake(new_PP[i], xdot=dx[i], ydot=dy[i], zdot=dz[i], initial_PP_length=initial_PP_length, eps=eps)
+        new_PP[i + 1] = gigafakesnake(
+            new_PP[i],
+            xdot=dx[i],
+            ydot=dy[i],
+            zdot=dz[i],
+            initial_PP_length=initial_PP_length,
+            eps=eps,
+        )
     return new_PP
 
 
@@ -150,15 +169,11 @@ def visualise_simulation_animation(configs_PP, frame_duration=50):
             )
             for k in range(1, len(configurations_dictionary))
         ],
-    ).update_traces(
-        marker=dict(
-            size=3
-            )
-        )
+    ).update_traces(marker=dict(size=3))
 
     return fig
-    
-    
+
+
 def visualise_simulation_animation_traces(
     configs_PP, ghost_count=1, delay=5, frame_duration=50
 ):
@@ -314,7 +329,7 @@ def visualise_simulation_start_to_finish(PP_configuration):
             yaxis=dict(range=axis_range, dtick=tick_step),
             zaxis=dict(range=axis_range, dtick=tick_step),
             aspectmode="manual",
-            aspectratio=dict(x=1, y=1, z=1)
+            aspectratio=dict(x=1, y=1, z=1),
         ),
         width=700,
         height=700,
@@ -322,13 +337,17 @@ def visualise_simulation_start_to_finish(PP_configuration):
 
     fig.update_traces(marker=dict(size=3))
 
-    # fig.show()
     return fig
 
 
-
-
-def visualise_simulation_evolution(PP_configuration, link_count, range_x = None, range_y = None, range_z = None, color_disc_map = None):
+def visualise_simulation_evolution(
+    PP_configuration,
+    link_count,
+    range_x=None,
+    range_y=None,
+    range_z=None,
+    color_disc_map=None,
+):
     """Plots the evolution of positions of a list of point pairs in 3D."""
     x = []
     y = []
@@ -341,55 +360,51 @@ def visualise_simulation_evolution(PP_configuration, link_count, range_x = None,
         range_z = (-4, 4)
     if color_disc_map is None:
         # color_disc_map = {val: f'rgba({255*val}, 0, {255*(1.-val)}, 1)' for val in df.color}
-        color_disc_map = lambda val: f'rgba({255*val}, 0, {255*(1.-val)}, 1)'
-        
+        color_disc_map = lambda val: f"rgba({255*val}, 0, {255*(1.-val)}, 1)"
+
     for configuration in PP_configuration:
         points = cga.extract_unique_points(configuration)
         xn, yn, zn = cga.extract_points_for_scatter(points)
         x += xn
         y += yn
         z += zn
-    colors = np.repeat(np.linspace(0, 1, len(PP_configuration)), link_count+1)
-    df = pd.DataFrame(
-        dict(
-            X=x,
-            Y=y,
-            Z=z,
-            color=colors
+    colors = np.repeat(np.linspace(0, 1, len(PP_configuration)), link_count + 1)
+    df = pd.DataFrame(dict(X=x, Y=y, Z=z, color=colors))
+    fig = (
+        px.line_3d(
+            df,
+            x="X",
+            y="Y",
+            z="Z",
+            color="color",
+            # color_discrete_map={val: f'rgba(0, 0, 255, {val*0.3 + 0.7})' for val in df.color},
+            color_discrete_map={col: color_disc_map(col) for col in df.color},
+            # color_discrete_map={val: f'rgb({147*(.3*val+.7)}, {173*(.3*val+.7)}, {68*(.3*val+.7)})' for val in df.color},
+            markers=True,
+            range_x=range_x,
+            range_y=range_y,
+            range_z=range_z,
+        )
+        .update_layout(
+            scene={
+                "xaxis": dict(range=range_x),
+                "yaxis": dict(range=range_y),
+                "zaxis": dict(range=range_z),
+                # "aspectmode": "cube",
+            },
+            scene_aspectmode="data",
+            width=700,
+            height=700,
+        )
+        .update_traces(
+            marker=dict(size=3),
+            # opacity=[0., .2, .3, .4, .5]
         )
     )
-    fig = px.line_3d(
-        df,
-        x="X",
-        y="Y",
-        z="Z",
-        color="color",
-        # color_discrete_map={val: f'rgba(0, 0, 255, {val*0.3 + 0.7})' for val in df.color},
-        color_discrete_map= {col: color_disc_map(col) for col in df.color},
-        # color_discrete_map={val: f'rgb({147*(.3*val+.7)}, {173*(.3*val+.7)}, {68*(.3*val+.7)})' for val in df.color},
-        markers=True,
-        range_x=range_x,
-        range_y=range_y,
-        range_z=range_z,
-    ).update_layout(
-        scene={
-            "xaxis": dict(range=range_x),
-            "yaxis": dict(range=range_y),
-            "zaxis": dict(range=range_z),
-            # "aspectmode": "cube",
-        },
-        scene_aspectmode="data",
-        width=700,
-        height=700,
-    ).update_traces(
-        marker=dict(
-            size=3
-            ),
-        # opacity=[0., .2, .3, .4, .5]
-        )
     fig.show()
-    
+
     # return fig
+
 
 def visualise_PP_configuration(PP):
     """Plots one configuration of a list of point pairs in 3D."""
@@ -399,33 +414,32 @@ def visualise_PP_configuration(PP):
     df = pd.DataFrame(
         dict(X=x_initial, Y=y_initial, Z=z_initial, color=["Initial"] * len(x_initial))
     )
-    fig = px.line_3d(
-        df,
-        x="X",
-        y="Y",
-        z="Z",
-        color="color",
-        markers=True,
-        range_x=(-4, 4),
-        range_y=(-4, 4),
-        range_z=(-4, 4),
-    ).update_layout(
-        scene={
-            "xaxis": dict(nticks=9, range=[-4, 4]),
-            "yaxis": dict(nticks=9, range=[-4, 4]),
-            "zaxis": dict(nticks=9, range=[-4, 4]),
-            "aspectmode": "cube",
-        },
-        scene_aspectmode="cube",
-        width=700,
-        height=700,
-    ).update_traces(
-        marker=dict(
-            size=3
-            )
+    fig = (
+        px.line_3d(
+            df,
+            x="X",
+            y="Y",
+            z="Z",
+            color="color",
+            markers=True,
+            range_x=(-4, 4),
+            range_y=(-4, 4),
+            range_z=(-4, 4),
         )
+        .update_layout(
+            scene={
+                "xaxis": dict(nticks=9, range=[-4, 4]),
+                "yaxis": dict(nticks=9, range=[-4, 4]),
+                "zaxis": dict(nticks=9, range=[-4, 4]),
+                "aspectmode": "cube",
+            },
+            scene_aspectmode="cube",
+            width=700,
+            height=700,
+        )
+        .update_traces(marker=dict(size=3))
+    )
     fig.show()
-
 
 
 def configuration_multilink_random_planar(count=10, length=0.3):
@@ -434,8 +448,10 @@ def configuration_multilink_random_planar(count=10, length=0.3):
     pts = [None] * count
     pts[0] = cga.up(0)
     for i in range(1, count):
-        angle = np.clip(np.random.uniform() * np.pi / 2.0, np.pi / 36.0, np.pi / 2.0)
-        translation = cga.translator_to_cga_point(cga.up(length * (np.cos(angle) * cga.e1 + np.sin(angle) * cga.e2)))
+        angle = np.clip(np.random.uniform() * pi / 2.0, pi / 36.0, pi / 2.0)
+        translation = cga.translator_to_cga_point(
+            cga.up(length * (np.cos(angle) * cga.e1 + np.sin(angle) * cga.e2))
+        )
         new_point = translation * pts[i - 1] * ~translation
         pts[i] = new_point
 
@@ -447,7 +463,9 @@ def configuration_multilink_line(count=10, length=0.3):
     count += 1
     pts = [None] * count
     pts[0] = cga.up(0)
-    translation = cga.translator_to_cga_point(cga.up(length/np.sqrt(2) * (cga.e1 + cga.e2)))
+    translation = cga.translator_to_cga_point(
+        cga.up(length / np.sqrt(2) * (cga.e1 + cga.e2))
+    )
     for i in range(1, count):
         new_point = translation * pts[i - 1] * ~translation
         pts[i] = new_point
