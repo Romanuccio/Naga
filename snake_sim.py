@@ -177,7 +177,7 @@ def visualise_simulation_animation(configs_PP, frame_duration=50):
 def visualise_simulation_animation_traces(
     configs_PP, ghost_count=1, delay=5, frame_duration=50
 ):
-    """Plots the 3D animation of the snake robot."""
+    """WIP, plot of ghosted animated movement."""
     configurations_dictionary = {
         0: cga.extract_points_for_scatter(cga.extract_unique_points(configs_PP[0]))
     }
@@ -211,6 +211,86 @@ def visualise_simulation_animation_traces(
             for _ in range(ghost_count)
         ]
     )
+
+    def update_scatters(current_index, delay, ghost_count):
+        scatters[0] = go.Scatter3d(
+            x=configs_dataframe[current_index][0],
+            y=configs_dataframe[current_index][1],
+            z=configs_dataframe[current_index][2],
+            opacity=1,
+            marker={
+                "color": "blue",
+                "opacity": 1,
+            },
+        )
+
+        update_time = current_index % delay
+        if update_time == 0:
+            ghost_index = ((current_index - 1) // delay) % (ghost_count)
+            scatters[ghost_index + 1] = go.Scatter3d(
+                x=configs_dataframe[current_index][0],
+                y=configs_dataframe[current_index][1],
+                z=configs_dataframe[current_index][2],
+                marker=dict(
+                    color="blue",
+                    # opacity = 1-(ghost_count-ghost_index)/ghost_count
+                    # opacity=np.clip(0.6 - (ghost_count-ghost_index)/ghost_count,0.3,1)
+                ),
+            )
+
+            for i in range(ghost_index, ghost_count + ghost_index):
+                index = i % ghost_count
+                scatters[index].mode = "lines+markers"
+                scatters[index].marker = {
+                    "opacity": 1 - 0.5 * index / ghost_count,
+                    "color": "blue",
+                    "size": 3,
+                }
+                scatters[index].opacity = 1 - 0.5 * index / ghost_count
+
+        return scatters
+
+    # last_pos = configs_dataframe[configs_dataframe.columns[5]]
+    fig = go.Figure(
+        data=scatters,
+        layout=go.Layout(
+            updatemenus=[
+                dict(
+                    type="buttons",
+                    buttons=[
+                        dict(
+                            args=[
+                                None,
+                                {
+                                    "frame": {
+                                        "duration": frame_duration,
+                                        "redraw": True,
+                                    },
+                                    "fromcurrent": True,
+                                },
+                            ],
+                            label="Play",
+                            method="animate",
+                        )
+                    ],
+                )
+            ],
+            scene={
+                "xaxis": dict(range=[-3, 3]),
+                "yaxis": dict(range=[-3, 3]),
+                "zaxis": dict(range=[-3, 3]),
+                "aspectmode": "cube",
+            },
+            width=700,
+            height=700,
+        ),
+        frames=[
+            go.Frame(data=update_scatters(k, delay=delay, ghost_count=ghost_count))
+            for k in range(1, len(configurations_dictionary))
+        ],
+    ).update_traces(marker=dict(size=3))
+
+    return fig
 
     def update_scatters(current_index, delay, ghost_count):
         scatters[0] = go.Scatter3d(
@@ -347,20 +427,20 @@ def visualise_simulation_evolution(
     range_y=None,
     range_z=None,
     color_disc_map=None,
+    show_legend=True
 ):
-    """Plots the evolution of positions of a list of point pairs in 3D."""
-    x = []
-    y = []
-    z = []
+    """Plots the evolution of positions of a list of point pairs in 3D with equal axis scaling and no axis tick labels or titles."""
+    x, y, z = [], [], []
+
     if range_x is None:
         range_x = (-4, 4)
     if range_y is None:
         range_y = (-4, 4)
     if range_z is None:
         range_z = (-4, 4)
+
     if color_disc_map is None:
-        # color_disc_map = {val: f'rgba({255*val}, 0, {255*(1.-val)}, 1)' for val in df.color}
-        color_disc_map = lambda val: f"rgba({255*val}, 0, {255*(1.-val)}, 1)"
+        color_disc_map = lambda val: f'rgba({255*val}, 0, {255*(1.-val)}, 1)'
 
     for configuration in PP_configuration:
         points = cga.extract_unique_points(configuration)
@@ -368,42 +448,55 @@ def visualise_simulation_evolution(
         x += xn
         y += yn
         z += zn
+
     colors = np.repeat(np.linspace(0, 1, len(PP_configuration)), link_count + 1)
     df = pd.DataFrame(dict(X=x, Y=y, Z=z, color=colors))
-    fig = (
-        px.line_3d(
-            df,
-            x="X",
-            y="Y",
-            z="Z",
-            color="color",
-            # color_discrete_map={val: f'rgba(0, 0, 255, {val*0.3 + 0.7})' for val in df.color},
-            color_discrete_map={col: color_disc_map(col) for col in df.color},
-            # color_discrete_map={val: f'rgb({147*(.3*val+.7)}, {173*(.3*val+.7)}, {68*(.3*val+.7)})' for val in df.color},
-            markers=True,
-            range_x=range_x,
-            range_y=range_y,
-            range_z=range_z,
-        )
-        .update_layout(
-            scene={
-                "xaxis": dict(range=range_x),
-                "yaxis": dict(range=range_y),
-                "zaxis": dict(range=range_z),
-                # "aspectmode": "cube",
-            },
-            scene_aspectmode="data",
-            width=700,
-            height=700,
-        )
-        .update_traces(
-            marker=dict(size=3),
-            # opacity=[0., .2, .3, .4, .5]
-        )
-    )
-    fig.show()
 
-    # return fig
+    fig = px.line_3d(
+        df,
+        x="X",
+        y="Y",
+        z="Z",
+        color="color",
+        color_discrete_map={col: color_disc_map(col) for col in df.color},
+        markers=True,
+        range_x=range_x,
+        range_y=range_y,
+        range_z=range_z,
+    ).update_layout(
+        scene=dict(
+            xaxis=dict(
+                range=range_x,
+                showgrid=True,
+                zeroline=True,
+                # showticklabels=False,
+                # title=''               
+            ),
+            yaxis=dict(
+                range=range_y,
+                showgrid=True,
+                zeroline=True,
+                # showticklabels=False,
+                # title=''
+            ),
+            zaxis=dict(
+                range=range_z,
+                showgrid=True,
+                zeroline=True,
+                # showticklabels=False,
+                # title=''
+            ),
+            aspectmode='manual',
+            aspectratio=dict(x=1, y=1, z=1),
+        ),
+        showlegend=show_legend,
+        width=700,
+        height=700,
+    ).update_traces(
+        marker=dict(size=3)
+    )
+
+    return fig
 
 
 def visualise_PP_configuration(PP):
