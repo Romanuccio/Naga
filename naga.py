@@ -10,7 +10,7 @@ from G3C_extension import e1, e2, e3, einf
 from numpy import pi
 
 
-def gigafakesnake(
+def snake_iteration(
     initial_PP,
     xdot,
     ydot,
@@ -97,7 +97,7 @@ def calculate_kinematics(
     new_PP = [0] * (iterations + 1)
     new_PP[0] = initial_PP_configuration
     for i in range(iterations):
-        new_PP[i + 1] = gigafakesnake(
+        new_PP[i + 1] = snake_iteration(
             new_PP[i],
             xdot=dx[i],
             ydot=dy[i],
