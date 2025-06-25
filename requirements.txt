@@ -1,4 +1,4 @@
-python==3.9.13
+#python==3.9.13
 clifford==1.4.0
   numpy==1.23.5
   scipy==1.10.1
