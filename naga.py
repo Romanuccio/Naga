@@ -108,7 +108,7 @@ def calculate_kinematics(
     return new_PP
 
 
-def visualise_simulation_animation(configs_PP, frame_duration=50):
+def visualise_simulation_animation(configs_PP, frame_duration=50, visualise_final=False):
     """Plots the 3D animation of the snake robot."""
     configurations_dictionary = {
         0: cga.extract_points_for_scatter(cga.extract_unique_points(configs_PP[0]))
@@ -125,6 +125,9 @@ def visualise_simulation_animation(configs_PP, frame_duration=50):
         data=[
             go.Scatter3d(x=first_pos[0], y=first_pos[1], z=first_pos[2]),
             go.Scatter3d(x=last_pos[0], y=last_pos[1], z=last_pos[2]),
+        ] if visualise_final else 
+        [
+            go.Scatter3d(x=first_pos[0], y=first_pos[1], z=first_pos[2]),
         ],
         layout=go.Layout(
             updatemenus=[
@@ -360,7 +363,8 @@ def visualise_simulation_evolution(
         range_z = (-4, 4)
 
     if color_disc_map is None:
-        color_disc_map = lambda val: f'rgba({255*val}, 0, {255*(1.-val)}, 1)'
+        def color_disc_map(val):
+            return f'rgba({255*val}, 0, {255*(1.-val)}, 1)'
 
     for configuration in PP_configuration:
         points = cga.extract_unique_points(configuration)

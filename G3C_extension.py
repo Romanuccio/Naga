@@ -60,7 +60,8 @@ def translator(translation_vector):
         and translation_vector | e3 == 0
     ):
         return blades[""]
-    trans = (-0.5 * translation_vector * einf).exp()
+    trans = translation
+    # trans = (-0.5 * translation_vector * einf).exp()
     # bivector = bivector/euclidean_norm(bivector)
     return trans
 

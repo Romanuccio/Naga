@@ -173,3 +173,6 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 /start_finish_cut.png
+
+# jsons
+time_results*
