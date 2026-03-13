@@ -108,7 +108,7 @@ def calculate_kinematics(
     return new_PP
 
 
-def visualise_simulation_animation(configs_PP, frame_duration=50, visualise_final=False):
+def visualise_simulation_animation(configs_PP, frame_duration=50, visualise_final=False, show_play=True):
     """Plots the 3D animation of the snake robot."""
     configurations_dictionary = {
         0: cga.extract_points_for_scatter(cga.extract_unique_points(configs_PP[0]))
@@ -150,7 +150,7 @@ def visualise_simulation_animation(configs_PP, frame_duration=50, visualise_fina
                         )
                     ],
                 )
-            ],
+            ] if show_play else [dict()],
             scene={
                 "xaxis": dict(range=[-3, 3]),
                 "yaxis": dict(range=[-3, 3]),

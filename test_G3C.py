@@ -63,15 +63,15 @@ class Test_PP:
         R = cga.rotor(cga.e12, pi / 3.0)
         rotated_PP = copy.deepcopy(self.orig_PP)
         C, D = cga.decompose_point_pair(rotated_PP)
-        print(f"initial:\nC\n{C.value}\nD\n{D.value}\n")
+        # print(f"initial:\nC\n{C.value}\nD\n{D.value}\n")
         for _ in range(300):
             rotated_PP = R * rotated_PP * ~R
         C, D = cga.decompose_point_pair(rotated_PP)
-        print(f"300 rotations:\nC\n{C.value}\nD\n{D.value}\n")
+        # print(f"300 rotations:\nC\n{C.value}\nD\n{D.value}\n")
         for _ in range(27000):
             rotated_PP = R * rotated_PP * ~R
         C, D = cga.decompose_point_pair(rotated_PP)
-        print(f"30000 rotations:\nC\n{C.value}\nD\n{D.value}")
+        # print(f"30000 rotations:\nC\n{C.value}\nD\n{D.value}")
         down_C, down_D = (cga.down(C), cga.down(D))
         vect = down_C - down_D
         length = cga.euclidean_norm(vect)
@@ -127,7 +127,7 @@ class Test_PP:
             print(A, B)
             PP = cga.point_pair(A, B)
 
-        assert PP == pytest.approx(self.orig_PP)
+        assert PP.value == pytest.approx(self.orig_PP.value)
 
     def test_rotated_PP_exp_goniometric_equality(self):
         """Checks equality of """
