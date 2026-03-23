@@ -172,10 +172,18 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-/start_finish_cut.png
+
+
+# outputs of simulations
 
 # json times
 time_results*
 
 # gifs
 *.gif
+
+# pdfs
+*.pdf
+
+# pngs
+*.png
