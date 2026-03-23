@@ -10,22 +10,42 @@ def inner_commutator(mv1, mv2):
     return (mv1 | mv2) - (mv2 | mv1)
 
 
+# def decompose_point_pair(point_pair):
+#     """Decomposes a point pair into the beginning and end-point Q1, Q2 and normalizes them w.r.t cga point representation."""
+#     pp_product = (point_pair | point_pair).value[0]
+#     if pp_product < 0:
+#         raise ValueError("Imaginary point pair in decompose_point_pair")
+#     Q1 = (sqrt(pp_product) - point_pair) / (einf | point_pair)
+#     scalar_eo = Q1 | einf
+#     if scalar_eo != 0:
+#         Q1 /= -scalar_eo
+#     Q2 = -(sqrt(pp_product) + point_pair) / (einf | point_pair)
+#     scalar_eo = Q2 | einf
+#     if scalar_eo != 0:
+#         Q2 /= -scalar_eo
+#     Q1_sanitised = Q1(1).clean()
+#     Q2_sanitised = Q2(1).clean()
+#     return Q1_sanitised, Q2_sanitised
+
 def decompose_point_pair(point_pair):
-    """Decomposes a point pair into the beginning and end-point Q1, Q2 and normalizes them w.r.t cga points."""
     pp_product = (point_pair | point_pair).value[0]
     if pp_product < 0:
         raise ValueError("Imaginary point pair in decompose_point_pair")
-    Q1 = (sqrt(pp_product) - point_pair) / (einf | point_pair)
-    scalar_eo = Q1 | einf
-    if scalar_eo != 0:
-        Q1 /= -scalar_eo
-    Q2 = -(sqrt(pp_product) + point_pair) / (einf | point_pair)
-    scalar_eo = Q2 | einf
-    if scalar_eo != 0:
-        Q2 /= -scalar_eo
-    Q1_sanitised = Q1(1).clean()
-    Q2_sanitised = Q2(1).clean()
-    return Q1_sanitised, Q2_sanitised
+
+    denom = (einf | point_pair)
+    # if abs(denom) < 1e-12:
+    #     raise ValueError("Degenerate point pair")
+
+    Q1 = (sqrt(pp_product) - point_pair) / denom
+    Q2 = -(sqrt(pp_product) + point_pair) / denom
+
+    for Q in [Q1, Q2]:
+        den = (Q | einf).value[0]
+        if abs(den) < 1e-12:
+            raise ValueError("Degenerate point in normalization")
+        Q /= -den
+
+    return Q1(1).clean(), Q2(1).clean()
 
 
 def extract_point_pair_length(point_pair):
@@ -60,9 +80,7 @@ def translator(translation_vector):
         and translation_vector | e3 == 0
     ):
         return blades[""]
-    # trans = translation
     trans = (-0.5 * translation_vector * einf).exp()
-    # bivector = bivector/euclidean_norm(bivector)
     return trans
 
 
@@ -161,16 +179,18 @@ def sphere_inner(centre, radius):
 
 
 def line_from_points(A, B):
+    """OPNS line from two points."""
     line_sanitised = (A ^ B ^ einf)(3).clean()
     return line_sanitised
 
 
 def line_from_pair(P):
+    """OPNS line from a point pair."""
     pair_sanitised = (P ^ einf)(3).clean()
     return pair_sanitised
 
 
-def configuration_test(
+def configuration_full3D(
     x_pos,
     y_pos,
     z_pos,
@@ -208,7 +228,7 @@ def configuration_test(
     return (points, axes)
 
 
-def configuration_test_planar(x_pos, y_pos, z_pos, theta, phi_1, phi_2, l):
+def configuration_planar(x_pos, y_pos, z_pos, theta, phi_1, phi_2, l):
     """Returns a tuple of points and axes representing the snake robot in the given planar configuration."""
     point1 = up(x_pos * e1 + y_pos * e2 + z_pos * e3)
     L0 = joint_axis_planar(point1)
