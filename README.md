@@ -1,6 +1,6 @@
 # Naga
 
-**N**onholonomic **A**rticulation using **G**eometric **A**lgebra
+**N**onholonomic **A**ctuation using **G**eometric **A**lgebra
 
 ## Licence
 
